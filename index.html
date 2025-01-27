@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golang realtime sandbox</title>
+  </head>
+  <body>
+    <h1>Some experiments with Golang WebSockets and Server Sent Events</h1>
+
+    <form>
+      <fieldset>
+        <legend>Protocol used</legend>
+
+        <label>
+          <input
+            type="radio"
+            name="protocol"
+            value="ws"
+            checked
+            onchange="connectToServerUsingSelectedProtocol()"
+          />
+          Websockets</label
+        >
+        <label>
+          <input
+            type="radio"
+            name="protocol"
+            value="sse"
+            onchange="connectToServerUsingSelectedProtocol()"
+          />
+          Server Sent Events
+        </label>
+      </fieldset>
+    </form>
+
+    <ul id="messages"></ul>
+
+    <script type="text/javascript">
+      /** @type {EventSource | WebSocket} */
+      let current = undefined;
+
+      function connectToServerUsingSelectedProtocol() {
+        const data = new FormData(document.forms[0]);
+        const protocol = data.get("protocol");
+
+        if (current) {
+          current.close();
+          current = undefined;
+        }
+
+        switch (protocol) {
+          case "ws":
+            current = new WebSocket("ws://localhost:8080/ws");
+            break;
+          case "sse":
+            current = new EventSource("http://localhost:8080/sse");
+            break;
+        }
+
+        current.onmessage = appendMessage;
+      }
+
+      function appendMessage(event) {
+        const li = document.createElement("li");
+        li.innerText = event.data;
+
+        messages.appendChild(li);
+      }
+
+      connectToServerUsingSelectedProtocol();
+    </script>
+  </body>
+</html>
