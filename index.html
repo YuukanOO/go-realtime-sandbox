@@ -65,6 +65,9 @@
         switch (protocol) {
           case "ws":
             current = new WebSocket("/ws");
+            current.onclose = function () {
+              console.log("closed");
+            };
             break;
           case "sse":
             current = new EventSource("/sse");

@@ -90,4 +90,6 @@ func main() {
 	}()
 
 	<-exit
+
+	server.Close()
 }

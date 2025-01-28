@@ -30,6 +30,7 @@ func NewWebsocketClient(w http.ResponseWriter, r *http.Request, server Server) (
 
 func (w *wsClient) Run() (err error) {
 	if err = w.server.Register(w); err != nil {
+		w.Close()
 		return err
 	}
 
@@ -43,8 +44,12 @@ func (w *wsClient) Send(message string) {
 	w.send <- message
 }
 
+func (w *wsClient) Close() {
+	_ = w.conn.Close()
+}
+
 func (w *wsClient) readPump() {
-	defer w.close()
+	defer w.cleanup()
 
 	for {
 		_, message, err := w.conn.ReadMessage() // Will return an error when the connection is closed.
@@ -58,7 +63,7 @@ func (w *wsClient) readPump() {
 }
 
 func (w *wsClient) writePump() {
-	defer w.conn.Close() // Only close the connection here, let the readPump unregister the client
+	defer w.Close() // Only close the connection here, let the readPump unregister the client
 
 	for msg := range w.send {
 		err := w.conn.WriteMessage(websocket.TextMessage, []byte(msg))
@@ -69,8 +74,8 @@ func (w *wsClient) writePump() {
 	}
 }
 
-func (w *wsClient) close() {
-	close(w.send)
+func (w *wsClient) cleanup() {
 	_ = w.conn.Close()
 	w.server.UnRegister(w)
+	close(w.send)
 }

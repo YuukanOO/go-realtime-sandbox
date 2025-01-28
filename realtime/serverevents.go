@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 )
@@ -9,13 +10,17 @@ type sseClient struct {
 	writer  http.ResponseWriter
 	request *http.Request
 	send    chan string
+	cancel  context.CancelFunc
 	server  Server
 }
 
 func NewServerSentEventsClient(w http.ResponseWriter, r *http.Request, server Server) (Client, error) {
+	ctx, cancel := context.WithCancel(r.Context())
+
 	return &sseClient{
 		writer:  w,
-		request: r,
+		cancel:  cancel,
+		request: r.WithContext(ctx),
 		server:  server,
 		send:    make(chan string),
 	}, nil
@@ -33,7 +38,7 @@ func (s *sseClient) Run() error {
 		return err
 	}
 
-	defer s.close()
+	defer s.cleanup()
 
 	for {
 		select {
@@ -58,7 +63,11 @@ func (s *sseClient) Send(msg string) {
 	s.send <- msg
 }
 
-func (s *sseClient) close() {
-	close(s.send)
+func (s *sseClient) Close() {
+	s.cancel()
+}
+
+func (s *sseClient) cleanup() {
 	s.server.UnRegister(s)
+	close(s.send)
 }
