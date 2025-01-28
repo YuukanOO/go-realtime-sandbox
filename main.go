@@ -5,6 +5,7 @@ import (
 	"errors"
 	"gorealtimesandbox/realtime"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -29,8 +30,20 @@ func main() {
 		}
 	})
 
-	mux.HandleFunc("/notify", func(w http.ResponseWriter, r *http.Request) {
-		realtimeServer.Send("some message!")
+	mux.HandleFunc("/send", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		data, err := io.ReadAll(r.Body)
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		realtimeServer.Send(string(data))
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -39,6 +52,7 @@ func main() {
 
 		if err != nil {
 			log.Print(err)
+			return
 		}
 
 		if err = client.Run(); err != nil {
@@ -51,6 +65,7 @@ func main() {
 
 		if err != nil {
 			log.Print(err)
+			return
 		}
 
 		if err = client.Run(); err != nil {

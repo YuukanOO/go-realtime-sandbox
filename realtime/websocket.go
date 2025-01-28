@@ -33,29 +33,8 @@ func (w *wsClient) Run() (err error) {
 		return err
 	}
 
-	go func() {
-		defer w.close()
-
-		for {
-			_, _, err := w.conn.ReadMessage()
-
-			if err != nil {
-				break
-			}
-		}
-	}()
-
-	go func() {
-		defer w.conn.Close()
-
-		for msg := range w.send {
-			err = w.conn.WriteMessage(websocket.TextMessage, []byte(msg))
-
-			if err != nil {
-				return
-			}
-		}
-	}()
+	go w.readPump()
+	go w.writePump()
 
 	return nil
 }
@@ -64,8 +43,34 @@ func (w *wsClient) Send(message string) {
 	w.send <- message
 }
 
+func (w *wsClient) readPump() {
+	defer w.close()
+
+	for {
+		_, message, err := w.conn.ReadMessage() // Will return an error when the connection is closed.
+
+		if err != nil {
+			return
+		}
+
+		w.server.Send(string(message)) // Broadcast the message to all clients
+	}
+}
+
+func (w *wsClient) writePump() {
+	defer w.conn.Close() // Only close the connection here, let the readPump unregister the client
+
+	for msg := range w.send {
+		err := w.conn.WriteMessage(websocket.TextMessage, []byte(msg))
+
+		if err != nil {
+			return
+		}
+	}
+}
+
 func (w *wsClient) close() {
 	close(w.send)
-	w.server.UnRegister(w)
 	_ = w.conn.Close()
+	w.server.UnRegister(w)
 }

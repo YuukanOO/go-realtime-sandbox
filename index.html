@@ -9,7 +9,7 @@
   <body>
     <h1>Some experiments with Golang WebSockets and Server Sent Events</h1>
 
-    <form>
+    <form onsubmit="submitMessage(); return false;">
       <fieldset>
         <legend>Protocol used</legend>
 
@@ -33,6 +33,13 @@
           Server Sent Events
         </label>
       </fieldset>
+
+      <label>
+        Message
+        <input id="msg" type="text" />
+      </label>
+
+      <button type="submit">Send</button>
     </form>
 
     <ul id="messages"></ul>
@@ -40,6 +47,11 @@
     <script type="text/javascript">
       /** @type {EventSource | WebSocket} */
       let current = undefined;
+
+      /** @type {HTMLUListElement} */
+      const messages = document.getElementById("messages");
+      /** @type {HTMLInputElement} */
+      const msg = document.getElementById("msg");
 
       function connectToServerUsingSelectedProtocol() {
         const data = new FormData(document.forms[0]);
@@ -52,14 +64,26 @@
 
         switch (protocol) {
           case "ws":
-            current = new WebSocket("ws://localhost:8080/ws");
+            current = new WebSocket("/ws");
             break;
           case "sse":
-            current = new EventSource("http://localhost:8080/sse");
+            current = new EventSource("/sse");
+            // Define the send method for sse since the EventSource does not support it
+            current.send = function (data) {
+              fetch("/send", {
+                method: "POST",
+                body: data,
+              });
+            };
             break;
         }
 
         current.onmessage = appendMessage;
+      }
+
+      function submitMessage() {
+        current.send(msg.value);
+        msg.value = "";
       }
 
       function appendMessage(event) {
